@@ -1,0 +1,53 @@
+Create api/player.js and paste this:
+javascriptconst https = require('https');
+
+function fetchPage(url) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.9',
+        'Accept-Encoding': 'identity'
+      }
+    };
+    https.get(url, options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve({ body: data, code: res.statusCode }));
+    }).on('error', reject);
+  });
+}
+
+module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: 'player id required: ?id=12345' });
+  try {
+    const resp = await fetchPage('https://www.hltv.org/stats/players/' + id + '/-');
+    const result = { status: 'ok', player_id: id };
+    if (resp.code === 200 && resp.body.length > 2000) {
+      const html = resp.body;
+      const nick = html.match(/summaryNickname[^>]*>([^<]+)</);
+      if (nick) result.nickname = nick[1].trim();
+      const rating = html.match(/Rating[\s\S]*?<span[^>]*>([\d.]+)</);
+      if (rating) result.rating = rating[1];
+      const kd = html.match(/K\/D[\s\S]*?<span[^>]*>([\d.]+)</);
+      if (kd) result.kd = kd[1];
+      const hs = html.match(/HS%[\s\S]*?<span[^>]*>([\d.]+)/);
+      if (hs) result.hs = hs[1];
+      const adr = html.match(/ADR[\s\S]*?<span[^>]*>([\d.]+)/);
+      if (adr) result.adr = adr[1];
+      const dpr = html.match(/DPR[\s\S]*?<span[^>]*>([\d.]+)/);
+      if (dpr) result.dpr = dpr[1];
+      const kast = html.match(/KAST[\s\S]*?<span[^>]*>([\d.]+)/);
+      if (kast) result.kast = kast[1];
+    } else {
+      result.error = 'HLTV returned ' + resp.code;
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
