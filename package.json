@@ -1,0 +1,6 @@
+{
+  "name": "tlr-hltv-proxy",
+  "version": "1.0.0",
+  "description": "HLTV proxy for TLR Esports Hub",
+  "private": true
+}
